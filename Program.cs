@@ -4,6 +4,8 @@ using System.Web;
 
 HttpClient httpClient = new HttpClient();
 httpClient.BaseAddress = new Uri("https://vietnamnet.vn/giao-duc/diem-thi/tra-cuu-diem-thi-tot-nghiep-thpt/2022/");
+httpClient.Timeout = TimeSpan.FromDays(1);
+List<string> thpts = new List<string>();
 await using (StreamWriter line = new("diemTHPT2022.csv"))
 {
     _ = line.WriteLineAsync(@"""SBD"",""Toán"",""Ngữ văn"",""Ngoại ngữ"",""Vật lý"",""Hóa học"",""Sinh học"",""Lịch sử"",""Địa lý"",""GDCD""");
@@ -21,24 +23,26 @@ for (int i = 1; i <= 64; i++)
         string mahs = j.ToString();
         string maHs = "000000".Remove(6 - mahs.Length) + mahs;
         var sbd = maTinh + maHs;
-        bool sussed = await Crawl(sbd);
-        if (sussed)
-            nfrqCount = 0;
-        else
-            nfrqCount++;
+        Task t = new Task(() => { Crawl(sbd); });
+        t.Start();
         if (nfrqCount > 100)
             break;
     }
 }
+foreach (var l in thpts)
+{
+    await using StreamWriter line = new("diemTHPT2022.csv", append: true);
+    _ = line.WriteLineAsync(l);
+    line.Close();
+}
 Console.WriteLine("Finished");
-async Task<bool> Crawl(string sbd)
+async void Crawl(string sbd)
 {
     try
     {
         string html = await httpClient.GetStringAsync(sbd + ".html");
         var htmlDocument = new HtmlDocument();
         htmlDocument.LoadHtml(html);
-        var tbody = htmlDocument.DocumentNode.Descendants("tbody").First();
         var tds = htmlDocument.DocumentNode.Descendants("td").Select(td => HttpUtility.HtmlDecode(td.InnerHtml)).ToList();
         var subject = new Dictionary<string, string> {
             {"Toán", "" },
@@ -51,9 +55,9 @@ async Task<bool> Crawl(string sbd)
             {"Địa", "" },
             {"GDCD", "" },
         };
-        for (int i = 0; i < tds.Count; i+=2)
+        for (int i = 0; i < tds.Count; i += 2)
         {
-            subject[tds[i]] = tds[i+1];
+            subject[tds[i]] = tds[i + 1];
         }
         string result = sbd;
         foreach (var sub in subject)
@@ -61,15 +65,12 @@ async Task<bool> Crawl(string sbd)
             result = result + "," + sub.Value;
         }
         Console.WriteLine(result);
-        await using StreamWriter line = new("diemTHPT2022.csv", append: true);
-        _ = line.WriteLineAsync(result);
-        line.Close();
+        thpts.Add(result);
     }
     catch (Exception ex)
     {
-        Console.WriteLine(sbd+": "+ex.Message);
-        return false;
+        Console.WriteLine(sbd + ": " + ex.Message);
+        nfrqCount++;
     }
-    return true;
-    
+    nfrqCount = 0;
 }
