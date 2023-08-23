@@ -43,9 +43,7 @@ async Task<bool> Crawl(string sbd)
         var html = await httpClient.GetStringAsync(sbd + ".html");
         var htmlDocument = new HtmlDocument();
         htmlDocument.LoadHtml(html);
-        var tbody = htmlDocument.DocumentNode.Descendants("tbody").First();
-        var tds = htmlDocument.DocumentNode.Descendants("td").Select(td => HttpUtility.HtmlDecode(td.InnerHtml))
-            .ToList();
+        var tds = htmlDocument.DocumentNode.Descendants("td").Select(td => HttpUtility.HtmlDecode(td.InnerHtml)).ToList();
         var subject = new Dictionary<string, string>
         {
             { "Toán", "" },
@@ -59,11 +57,10 @@ async Task<bool> Crawl(string sbd)
             { "GDCD", "" }
         };
         for (var i = 0; i < tds.Count; i += 2) subject[tds[i]] = tds[i + 1];
-        var result = sbd;
-        foreach (var sub in subject) result = result + "," + sub.Value;
+        var result = subject.Aggregate(sbd, (current, sub) => current + "," + sub.Value);
         Console.WriteLine(result);
         await using StreamWriter line = new("diemTHPT2022.csv", true);
-        _ = line.WriteLineAsync(result);
+        await line.WriteLineAsync(result);
         line.Close();
     }
     catch (Exception ex)
