@@ -1,0 +1,36 @@
+name: .NET
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup .NET
+        run: sudo apt-get update && sudo apt-get install -y dotnet-sdk-7.0
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet publish  -c Release -o ./out
+
+      - name: Run
+        run: dotnet ./out/CrawlDataTHPT.dll
+
+      - name: Test
+        run: cat ./out/CrawlDataTHPT2023.csv
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ./out/CrawlDataTHPT2023.csv
