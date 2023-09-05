@@ -2,9 +2,10 @@
 using HtmlAgilityPack;
 
 const int year = 2023;
+var fileName = $"diemTHPT{year}.csv";
 var httpClient = new HttpClient();
 httpClient.BaseAddress = new Uri($"https://vietnamnet.vn/giao-duc/diem-thi/tra-cuu-diem-thi-tot-nghiep-thpt/{year}/");
-await using (StreamWriter line = new($"diemTHPT{year}.csv"))
+await using (StreamWriter line = new(fileName))
 {
     _ = line.WriteLineAsync(
         @"""SBD"",""Toán"",""Ngữ văn"",""Ngoại ngữ"",""Vật lý"",""Hóa học"",""Sinh học"",""Lịch sử"",""Địa lý"",""GDCD""");
@@ -59,7 +60,7 @@ async Task<bool> Crawl(string sbd)
         for (var i = 0; i < tds.Count; i += 2) subject[tds[i]] = tds[i + 1];
         var result = subject.Aggregate(sbd, (current, sub) => current + "," + sub.Value);
         Console.WriteLine(result);
-        await using StreamWriter line = new("diemTHPT2022.csv", true);
+        await using StreamWriter line = new(fileName, true);
         await line.WriteLineAsync(result);
         line.Close();
     }
