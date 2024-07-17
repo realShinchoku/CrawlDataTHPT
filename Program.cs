@@ -1,43 +1,48 @@
-﻿using System.Web;
+using System.Web;
 using HtmlAgilityPack;
+using System.Threading.Tasks;
+using System.Collections.Concurrent;
+using System.Linq;
 
-const int year = 2023;
+const int year = 2024;
 var fileName = $"diemTHPT{year}.csv";
-var httpClient = new HttpClient();
-httpClient.BaseAddress = new Uri($"https://vietnamnet.vn/giao-duc/diem-thi/tra-cuu-diem-thi-tot-nghiep-thpt/{year}/");
-await using (StreamWriter line = new(fileName))
+var httpClient = new HttpClient
 {
-    _ = line.WriteLineAsync(
-        @"""SBD"",""Toán"",""Ngữ văn"",""Ngoại ngữ"",""Vật lý"",""Hóa học"",""Sinh học"",""Lịch sử"",""Địa lý"",""GDCD""");
-    line.Close();
-}
+    BaseAddress = new Uri($"https://vietnamnet.vn/giao-duc/diem-thi/tra-cuu-diem-thi-tot-nghiep-thpt/{year}/")
+};
+var results = new ConcurrentBag<string>();
+
+await File.WriteAllTextAsync(fileName, """
+                                       "SBD","Toán","Ngữ văn","Ngoại ngữ","Vật lý","Hóa học","Sinh học","Lịch sử","Địa lý","GDCD"
+                                       """);
 
 Console.WriteLine("Working....");
-var nfrqCount = 0;
-for (var i = 1; i <= 64; i++)
+
+await Parallel.ForAsync(1, 65, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 2 }, async (i, _) =>
 {
-    var maTinh = i.ToString();
-    if (i < 10)
-        maTinh = "0" + maTinh;
+    var maTinh = i.ToString("D2");
+    var nfrqCount = 0;
     for (var j = 1; j <= 999999; j++)
     {
-        var mahs = j.ToString();
-        var maHs = "000000".Remove(6 - mahs.Length) + mahs;
-        var sbd = maTinh + maHs;
-        var sussed = await Crawl(sbd);
-        if (sussed)
+        var sbd = maTinh + j.ToString("D6");
+        var success = await CrawlAsync(sbd);
+        if (success)
             nfrqCount = 0;
         else
             nfrqCount++;
         if (nfrqCount > 100)
             break;
     }
-}
+});
 
 Console.WriteLine("Finished");
+
+// Sort results before writing to file
+var sortedResults = results.OrderBy(x => x).ToList();
+await File.AppendAllLinesAsync(fileName, sortedResults);
 return;
 
-async Task<bool> Crawl(string sbd)
+async Task<bool> CrawlAsync(string sbd)
 {
     try
     {
@@ -59,16 +64,14 @@ async Task<bool> Crawl(string sbd)
         };
         for (var i = 0; i < tds.Count; i += 2) subject[tds[i]] = tds[i + 1];
         var result = subject.Aggregate(sbd, (current, sub) => current + "," + sub.Value);
+
+        results.Add(result);
         Console.WriteLine(result);
-        await using StreamWriter line = new(fileName, true);
-        await line.WriteLineAsync(result);
-        line.Close();
+        return true;
     }
     catch (Exception ex)
     {
         Console.WriteLine(sbd + ": " + ex.Message);
         return false;
     }
-
-    return true;
 }
