@@ -16,7 +16,7 @@ await File.WriteAllTextAsync(fileName, """
                                        "SBD","Toán","Ngữ văn","Ngoại ngữ","Vật lý","Hóa học","Sinh học","Lịch sử","Địa lý","GDCD"
                                        """);
 
-Console.WriteLine("Working....");
+Console.WriteLine($"Working on ${Environment.ProcessorCount * 2} threads");
 
 await Parallel.ForAsync(1, 65, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 2 }, async (i, _) =>
 {
